@@ -1,0 +1,476 @@
+---
+title: "Apoptosis project analysis"
+author: "David Foubert"
+date: "December 19, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(lmtest)
+library(car)
+library(RColorBrewer)
+library(plotrix)
+```
+
+The following analysis takes place on RNA Seq data
+
+```{r , echo=FALSE}
+categorical_apop_genes = read.csv("python_analysis/apop_genes_categorical.csv")
+comparison_apop_genes = read.csv("python_analysis/apop_genes_comparison.csv")
+
+```
+
+```{r}
+T63 = select(comparison_apop_genes, T63)
+T64 = select(comparison_apop_genes, T64)
+T65 = select(comparison_apop_genes, T65)
+T66 = select(comparison_apop_genes, T66)
+T67 = select(comparison_apop_genes, T67)
+T68 = select(comparison_apop_genes, T68)
+
+```
+
+
+The Treatment replicates do not have FPKMs that are statistically different from eachother according to the MANOVA and the Tukey Honest Significant Differences multiple pairwise-comparisons
+We need to verify that this result holds when comparing the FPKMs of the genes in a paired manner between replicates. For this we will use a ttest(one or two sample???)
+
+```{r}
+t.test(T63$T63, T64$T64,mu = 0, alternative = "two.sided", paired =TRUE)
+```
+```{r}
+t.test(T65$T65, T66$T66,mu = 0, alternative = "two.sided", paired =TRUE)
+```
+```{r}
+t.test(T67$T67, T68$T68,mu = 0, alternative = "two.sided", paired =TRUE)
+```
+
+##Since the treatment replicates are not statistically different we combine the results for each set of two replicates per treatment
+
+```{r}
+combined = read.csv("python_analysis/apop_genes_combined_replicates.csv")
+ctrl_to_tm = combined[combined$Treatment !='dtt',]
+ctrl_to_dtt = combined[combined$Treatment !='tm',]
+dtt_to_tm = combined[combined$Treatment !='ctrl',]
+```
+
+We check to see if there are significant differences in transcription between the ctrl and the treatments using two way ANOVA then we use Tukey test to determine if any of the genes have different FPKMs between treatments
+
+```{r}
+anov_ctrl_tm = aov(FPKM ~ Treatment * Gene, data = ctrl_to_tm)
+summary(anov_ctrl_tm)
+
+plot(anov_ctrl_tm,1)
+
+#No relationships between residuals and fitted values (although there are certain values that are raised as outliers they are most likely highly variably expressed genes)
+```
+
+```{r}
+tukey_ctrl_tm = TukeyHSD(anov_ctrl_tm, which = "Treatment:Gene")
+tukey_ctrl_tm_df = as.data.frame(tukey_ctrl_tm$`Treatment:Gene`)
+tukey_ctrl_tm_significant = tukey_ctrl_tm_df[tukey_ctrl_tm_df$`p adj`<=0.05,]
+```
+
+```{r}
+anov_ctrl_dtt = aov(FPKM ~ Treatment * Gene, data = ctrl_to_dtt)
+summary(anov_ctrl_dtt)
+
+plot(anov_ctrl_dtt,1)
+```
+
+```{r}
+tukey_ctrl_dtt = TukeyHSD(anov_ctrl_dtt, which = "Treatment:Gene")
+tukey_ctrl_dtt_df = as.data.frame(tukey_ctrl_dtt$`Treatment:Gene`)
+tukey_ctrl_dtt_significant = tukey_ctrl_dtt_df[tukey_ctrl_dtt_df$`p adj`<=0.05,]
+```
+
+We want to see if there are any differences in gene transcription between the two UPR inducing treatments
+
+
+```{r}
+anov_dtt_tm = aov(FPKM ~ Treatment * Gene, data = dtt_to_tm)
+summary(anov_dtt_tm)
+
+plot(anov_dtt_tm,1)
+```
+
+```{r}
+tukey_dtt_tm = TukeyHSD(anov_dtt_tm, which = "Treatment:Gene")
+tukey_dtt_tm_df = as.data.frame(tukey_dtt_tm$`Treatment:Gene`)
+tukey_dtt_tm_significant = tukey_dtt_tm_df[tukey_dtt_tm_df$`p adj`<=0.05,]
+```
+
+
+```{r}
+write.csv(tukey_ctrl_tm_significant,"/Users/Biocraze/Documents/Honours_project/tukey_ctrl_tm_significant.csv")
+write.csv(tukey_ctrl_dtt_significant,"/Users/Biocraze/Documents/Honours_project/tukey_ctrl_dtt_significant.csv")
+write.csv(tukey_dtt_tm_significant,"/Users/Biocraze/Documents/Honours_project/tukey_dtt_tm_significant.csv")
+
+```
+
+
+
+
+The following analysis takes place on Ribosomal profiling data
+
+
+
+```{r , echo=FALSE}
+riboprof_categorical = read.csv("python_analysis/riboprof_apop_genes_categorical.csv")
+riboprof_comparison = read.csv("python_analysis/riboprof_apop_genes_comparison.csv")
+
+```
+
+```{r}
+T51 = riboprof_comparison %>% select(genes, T51)
+T52 = riboprof_comparison %>% select(genes, T52)
+T53 = riboprof_comparison %>% select(genes, T53)
+T54 = riboprof_comparison %>% select(genes, T54)
+T55 = riboprof_comparison %>% select(genes, T55)
+T56 = riboprof_comparison %>% select(genes, T56)
+
+```
+
+
+The Treatment replicates do not have FPKMs that are statistically different from eachother according to the MANOVA and the Tukey Honest Significant Differences multiple pairwise-comparisons
+We need to verify that the replicates do not have FPKMs for the same genes that are statisticaly different when comparing the FPKMs of the genes in a paired manner between replicates. For this we will use a ttest(one or two sample???)
+
+```{r}
+t.test(T51$T51, T52$T52,mu = 0, alternative = "two.sided", paired =TRUE)
+```
+```{r}
+t.test(T53$T53, T54$T54,mu = 0, alternative = "two.sided", paired =TRUE)
+```
+```{r}
+t.test(T55$T55, T56$T56,mu = 0, alternative = "two.sided", paired =TRUE)
+```
+
+##Since the treatment replicates are not statistically different we combine the results for each set of two replicates per treatment
+
+```{r}
+riboprof_combined = read.csv("python_analysis/riboprof_combined_replicates.csv")
+rp_ctrl_to_tm = riboprof_combined[riboprof_combined$Treatment !='dtt',]
+rp_ctrl_to_dtt = riboprof_combined[riboprof_combined$Treatment !='tm',]
+rp_dtt_to_tm = riboprof_combined[riboprof_combined$Treatment !='ctrl',]
+```
+
+We check to see if there are significant differences in translation between the ctrl and the treatments using two way ANOVA then we use Tukey test to determine if any of the genes have different FPKMs between treatments
+
+```{r}
+anov_rp_ctrl_tm = aov(FPKM ~ Treatment * Gene, data = rp_ctrl_to_tm)
+summary(anov_rp_ctrl_tm)
+
+
+plot(anov_rp_ctrl_tm,1)
+```
+
+```{r}
+tukey_rp_ctrl_tm = TukeyHSD(anov_rp_ctrl_tm, which = "Treatment:Gene")
+tukey_rp_ctrl_tm_df = as.data.frame(tukey_rp_ctrl_tm$`Treatment:Gene`)
+tukey_rp_ctrl_tm_significant = tukey_rp_ctrl_tm_df[tukey_rp_ctrl_tm_df$`p adj`<=0.05,]
+```
+
+```{r}
+anov_rp_ctrl_dtt = aov(FPKM ~ Treatment * Gene, data = rp_ctrl_to_dtt)
+summary(anov_rp_ctrl_dtt)
+
+plot(anov_rp_ctrl_dtt,1)
+```
+
+```{r}
+tukey_rp_ctrl_dtt = TukeyHSD(anov_rp_ctrl_dtt, which = "Treatment:Gene")
+tukey_rp_ctrl_dtt_df = as.data.frame(tukey_rp_ctrl_dtt$`Treatment:Gene`)
+tukey_rp_ctrl_dtt_significant = tukey_rp_ctrl_dtt_df[tukey_rp_ctrl_dtt_df$`p adj`<=0.05,]
+```
+
+We want to see if there are any differences in gene translation between the two UPR inducing treatments
+
+
+```{r}
+anov_rp_dtt_tm = aov(FPKM ~ Treatment * Gene, data = rp_dtt_to_tm)
+summary(anov_rp_dtt_tm)
+
+
+plot(anov_rp_ctrl_tm,2)
+```
+
+```{r}
+tukey_rp_dtt_tm = TukeyHSD(anov_rp_dtt_tm, which = "Treatment:Gene")
+tukey_rp_dtt_tm_df = as.data.frame(tukey_rp_dtt_tm$`Treatment:Gene`)
+tukey_rp_dtt_tm_significant = tukey_rp_dtt_tm_df[tukey_rp_dtt_tm_df$`p adj`<=0.05,]
+```
+
+```{r}
+write.csv(tukey_rp_ctrl_tm_significant,"/Users/Biocraze/Documents/Honours_project/tukey_rp_ctrl_tm_significant.csv")
+write.csv(tukey_rp_ctrl_dtt_significant,"/Users/Biocraze/Documents/Honours_project/tukey_rp_ctrl_dtt_significant.csv")
+write.csv(tukey_rp_dtt_tm_significant,"/Users/Biocraze/Documents/Honours_project/tukey_rp_dtt_tm_significant.csv")
+
+```
+
+
+
+##DETERMINE IF THERE IS A DIFFERENCE IN THE MEAN EXPRESSION LEVEL OF APOP AND REST OF GENES
+
+
+```{r}
+sc_excluding_apop_51 = read.csv("/Users/Biocraze/Documents/Honours_project/python_analysis/sc_excluding_apop_51.csv")
+sc_excluding_apop_52 = read.csv("/Users/Biocraze/Documents/Honours_project/python_analysis/sc_excluding_apop_52.csv")
+sc_excluding_apop_53 = read.csv("/Users/Biocraze/Documents/Honours_project/python_analysis/sc_excluding_apop_53.csv")
+sc_excluding_apop_54 = read.csv("/Users/Biocraze/Documents/Honours_project/python_analysis/sc_excluding_apop_54.csv")
+sc_excluding_apop_55 = read.csv("/Users/Biocraze/Documents/Honours_project/python_analysis/sc_excluding_apop_55.csv")
+sc_excluding_apop_56 = read.csv("/Users/Biocraze/Documents/Honours_project/python_analysis/sc_excluding_apop_56.csv")
+sc_excluding_apop_63 = read.csv("/Users/Biocraze/Documents/Honours_project/python_analysis/sc_excluding_apop_63.csv")
+sc_excluding_apop_64 = read.csv("/Users/Biocraze/Documents/Honours_project/python_analysis/sc_excluding_apop_64.csv")
+sc_excluding_apop_65 = read.csv("/Users/Biocraze/Documents/Honours_project/python_analysis/sc_excluding_apop_65.csv")
+sc_excluding_apop_66 = read.csv("/Users/Biocraze/Documents/Honours_project/python_analysis/sc_excluding_apop_66.csv")
+sc_excluding_apop_67 = read.csv("/Users/Biocraze/Documents/Honours_project/python_analysis/sc_excluding_apop_67.csv")
+sc_excluding_apop_68 = read.csv("/Users/Biocraze/Documents/Honours_project/python_analysis/sc_excluding_apop_68.csv")
+
+sc_excluding_apop_51$X = NULL
+sc_excluding_apop_52$X = NULL
+sc_excluding_apop_53$X = NULL
+sc_excluding_apop_54$X = NULL
+sc_excluding_apop_55$X = NULL
+sc_excluding_apop_56$X = NULL
+sc_excluding_apop_63$X = NULL
+sc_excluding_apop_64$X = NULL
+sc_excluding_apop_65$X = NULL
+sc_excluding_apop_66$X = NULL
+sc_excluding_apop_67$X = NULL
+sc_excluding_apop_68$X = NULL
+
+```
+
+
+
+We need to verify that the replicates do not have FPKMs for the same genes that are statisticaly different when comparing the FPKMs of the genes in a paired manner between replicates. For this we will use a ttest(one or two sample???)
+
+
+```{r}
+t.test(sc_excluding_apop_51$FPKM, sc_excluding_apop_52$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+t.test(sc_excluding_apop_53$FPKM, sc_excluding_apop_54$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+t.test(sc_excluding_apop_55$FPKM, sc_excluding_apop_56$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+t.test(sc_excluding_apop_63$FPKM, sc_excluding_apop_64$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+t.test(sc_excluding_apop_65$FPKM, sc_excluding_apop_66$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+t.test(sc_excluding_apop_67$FPKM, sc_excluding_apop_68$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+
+
+```
+
+THE REPLICATES ARE STATISTICALLY SIMILAR THEREFORE WE CONSIDER EACH TREATMENT AS ONE DATASET 
+
+
+```{r}
+sc_excluding_apop_51['Treatment'] = 'ctrl'
+sc_excluding_apop_52['Treatment'] = 'ctrl'
+sc_excluding_apop_53['Treatment'] = 'dtt'
+sc_excluding_apop_54['Treatment'] = 'dtt'
+sc_excluding_apop_55['Treatment'] = 'tm'
+sc_excluding_apop_56['Treatment'] = 'tm'
+sc_excluding_apop_63['Treatment'] = 'ctrl'
+sc_excluding_apop_64['Treatment'] = 'ctrl'
+sc_excluding_apop_65['Treatment'] = 'dtt'
+sc_excluding_apop_66['Treatment'] = 'dtt'
+sc_excluding_apop_67['Treatment'] = 'tm'
+sc_excluding_apop_68['Treatment'] = 'tm'
+
+#REMOVE UNECESSARY COLUMNS FROM DATAFRAMES
+sc_excluding_apop_51[ ,c('SeqLen', 'Count', 'Count.Kb')] <- list(NULL)
+sc_excluding_apop_52[ ,c('SeqLen', 'Count', 'Count.Kb')] <- list(NULL)
+sc_excluding_apop_53[ ,c('SeqLen', 'Count', 'Count.Kb')] <- list(NULL)
+sc_excluding_apop_54[ ,c('SeqLen', 'Count', 'Count.Kb')] <- list(NULL)
+sc_excluding_apop_55[ ,c('SeqLen', 'Count', 'Count.Kb')] <- list(NULL)
+sc_excluding_apop_56[ ,c('SeqLen', 'Count', 'Count.Kb')] <- list(NULL)
+sc_excluding_apop_63[ ,c('SeqLen', 'Count', 'Count.Kb')] <- list(NULL)
+sc_excluding_apop_64[ ,c('SeqLen', 'Count', 'Count.Kb')] <- list(NULL)
+sc_excluding_apop_65[ ,c('SeqLen', 'Count', 'Count.Kb')] <- list(NULL)
+sc_excluding_apop_66[ ,c('SeqLen', 'Count', 'Count.Kb')] <- list(NULL)
+sc_excluding_apop_67[ ,c('SeqLen', 'Count', 'Count.Kb')] <- list(NULL)
+sc_excluding_apop_68[ ,c('SeqLen', 'Count', 'Count.Kb')] <- list(NULL)
+
+
+#G FOR GENOME (The rest of the genes that are not apoptotic)
+
+Grp_CTRL = rbind(sc_excluding_apop_51, sc_excluding_apop_52)
+Grp_DTT = rbind(sc_excluding_apop_53, sc_excluding_apop_54)
+Grp_TM = rbind(sc_excluding_apop_55, sc_excluding_apop_56)
+
+G_CTRL = rbind(sc_excluding_apop_63, sc_excluding_apop_64)
+G_DTT = rbind(sc_excluding_apop_65, sc_excluding_apop_66)
+G_TM = rbind(sc_excluding_apop_67, sc_excluding_apop_68)
+
+#THE TRANSCRIPTIONAL AND RIBOSOMAL PROFILING APOTOTIC GENE DATAFRAMES BY TREATMENT ARE MADE ( since not made earlier)
+
+rp_ctrl = riboprof_combined[riboprof_combined$Treatment =='ctrl',]
+rp_dtt = riboprof_combined[riboprof_combined$Treatment =='dtt',]
+rp_tm = riboprof_combined[riboprof_combined$Treatment =='tm',]
+
+ctrl = combined[combined$Treatment == 'ctrl',]
+dtt = combined[combined$Treatment == 'dtt',]
+tm = combined[combined$Treatment == 'tm',]
+```
+
+
+USE TTEST TO DETERMINE IF SIGNIFICANT DIFFERENCE IN TRANSCRIPTION LEVEL EXISTS  
+```{r}
+t.test(G_CTRL$FPKM, ctrl$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+t.test(G_DTT$FPKM, dtt$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+t.test(G_TM$FPKM, tm$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+
+#DETERMINE IF TRANSLATIONAL LEVELS ARE SIGNIFICANTLY DIFFERENT
+
+t.test(Grp_CTRL$FPKM, rp_ctrl$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+t.test(Grp_DTT$FPKM, rp_dtt$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+t.test(Grp_TM$FPKM, rp_tm$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+
+```
+No significant differenrence where found
+
+
+DETERMINE IF THERE IS A SIGNIFICANT DIFFERENCE BETWEEN NON APOP GENE TRANSCRIPTION AND TRANSLATIONAL LEVELS BETWEEN TREATMENTS
+
+```{r}
+t.test(G_CTRL$FPKM, G_DTT$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+t.test(G_CTRL$FPKM, G_TM$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+t.test(G_TM$FPKM, G_DTT$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+
+#DETERMINE IF TRANSLATIONAL LEVELS ARE SIGNIFICANTLY DIFFERENT
+
+t.test(Grp_CTRL$FPKM, Grp_DTT$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+t.test(Grp_TM$FPKM, Grp_CTRL$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+t.test(Grp_TM$FPKM, Grp_DTT$FPKM,mu = 0, alternative = "two.sided", paired =FALSE)
+```
+
+
+CREATE GRAPHS TO VISUALISE THE CHANGE IN APOPTOTIC GENE EXPRESSION 
+
+-create dataframes that contain only previously verified significantly different gene transcription and translation levels for use in graph making
+
+
+```{r}
+ctrl_graph = ctrl[ctrl$Gene == 'YGR192C' | ctrl$Gene =='YLR150W' | ctrl$Gene =='YKL056C',]
+tm_graph = tm[tm$Gene == 'YGR192C',]
+dtt_graph = dtt[dtt$Gene == 'YGR192C' | ctrl$Gene =='YLR150W' | ctrl$Gene =='YKL056C',]
+
+ctrl_tm_graph = rbind(ctrl_graph, tm_graph)
+ctrl_dtt_graph = rbind(ctrl_graph, dtt_graph)
+tm_dtt_graph = rbind(tm_graph, dtt_graph)
+
+rp_ctrl_graph = rp_ctrl[rp_ctrl$Gene =='YBL030C' | rp_ctrl$Gene =='YDL126C' | rp_ctrl$Gene =='YHR179W' | rp_ctrl$Gene =='YJR009C' | rp_ctrl$Gene =='YGR192C' | rp_ctrl$Gene == 'YKL056C' | rp_ctrl$Gene == 'YLR150W' | rp_ctrl$Gene == 'YNL055C' | rp_ctrl$Gene == 'YNL098C', ]
+
+rp_tm_graph = rp_tm[rp_tm$Gene =='YBL030C' | rp_tm$Gene =='YDL126C' | rp_tm$Gene =='YHR179W' | rp_tm$Gene =='YJR009C' | rp_ctrl$Gene =='YGR192C' | rp_tm$Gene == 'YKL056C' | rp_tm$Gene == 'YLR150W' | rp_tm$Gene == 'YNL055C' | rp_tm$Gene == 'YNL098C',]
+
+rp_dtt_graph = rp_dtt[rp_dtt$Gene =='YBL030C' | rp_dtt$Gene =='YDL126C' | rp_dtt$Gene =='YHR179W' | rp_dtt$Gene =='YJR009C' | rp_dtt$Gene =='YGR192C' | rp_dtt$Gene == 'YKL056C' | rp_dtt$Gene == 'YLR150W',]
+
+rp_ctrl_tm_graph = rbind(rp_ctrl_graph, rp_tm_graph)
+rp_ctrl_dtt_graph = rbind(rp_ctrl_graph, rp_dtt_graph)
+rp_tm_dtt_graph = rbind(rp_tm_graph, rp_dtt_graph)
+
+data_summary <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      se = std.error(x[[col]], na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+
+```
+
+
+#Ctrl vs DTT transcription graph
+```{r}
+ctrl_dtt_graph_sum = data_summary(ctrl_dtt_graph,varname = "FPKM", groupnames = c("Gene","Treatment"))
+ctrl_dtt_graph_sum$Gene = as.factor(ctrl_dtt_graph_sum$Gene)
+
+ggplot(ctrl_dtt_graph_sum, aes(x=Gene, y =FPKM, fill = Treatment)) +
+  geom_bar(stat="identity", color="black", position = position_dodge()) + 
+  geom_errorbar(aes(ymin=FPKM, ymax=FPKM+se), width=.2, position = position_dodge(.9)) +
+  scale_y_continuous(limits=c(0, 7000), expand = c(0, 0)) +
+  annotate("text",x=1,y=6000,label="p=0.03")+
+  annotate("text",x=2,y=6800,label="p<0.0001")+
+  annotate("text",x=3,y=3000,label="p<0.0001")+
+  theme_classic()+
+  theme(text = element_text(size = 15), axis.text.x = element_text(size=12, angle = 90, color = "black"), axis.text.y = element_text(size=12, color = "black"))
+```
+
+#Ctrl vs Tm transcription graph
+```{r}
+NA
+```
+
+#Tm vs Dtt transcription graph
+```{r}
+NA
+```
+
+#Ctrl vs Dtt translation graph
+```{r}
+rp_ctrl_dtt_graph_sum = data_summary(rp_ctrl_dtt_graph,varname = "FPKM", groupnames = c("Gene","Treatment"))
+rp_ctrl_dtt_graph_sum$Gene = as.factor(rp_ctrl_dtt_graph_sum$Gene)
+
+ggplot(rp_ctrl_dtt_graph_sum, aes(x=Gene, y =FPKM, fill = Treatment), pallette = "Dark2") +
+  geom_bar(stat="identity", color="black", position = position_dodge()) + 
+  geom_errorbar(aes(ymin=FPKM, ymax=FPKM+se), width=.2, position = position_dodge(.9)) +
+  scale_y_continuous( expand = c(0, 0)) +
+  #annotate("text",x=1,y=6000,label="p=0.03")+
+  #annotate("text",x=2,y=6800,label="p<0.0001")+
+  #annotate("text",x=3,y=3000,label="p<0.0001")+
+  theme_classic()+
+  theme(text = element_text(size = 15), axis.text.x = element_text(size=12, angle = 90, color = "black"), axis.text.y = element_text(size=12, color = "black"))
+```
+
+#Ctrl vs Tm translation graph
+```{r}
+rp_ctrl_tm_graph_sum = data_summary(rp_ctrl_tm_graph,varname = "FPKM", groupnames = c("Gene","Treatment"))
+rp_ctrl_tm_graph_sum$Gene = as.factor(rp_ctrl_tm_graph_sum$Gene)
+
+
+ggplot(rp_ctrl_tm_graph_sum, aes(x=Gene, y =FPKM, fill = Treatment)) +
+  geom_bar(stat="identity", color="black", position = position_dodge()) + 
+  geom_errorbar(aes(ymin=FPKM, ymax=FPKM+se), width=.2, position = position_dodge(.9)) +
+  scale_y_continuous( expand = c(0, 0)) +
+  #annotate("text",x=1,y=6000,label="p=0.03")+
+  #annotate("text",x=2,y=6800,label="p<0.0001")+
+  #annotate("text",x=3,y=3000,label="p<0.0001")+
+  theme_classic()+
+  theme(text = element_text(size = 15), axis.text.x = element_text(size=12, angle = 90, color = "black"), axis.text.y = element_text(size=12, color = "black"))
+```
+
+#Tm vs Dtt translation graph
+```{r}
+rp_tm_dtt_graph_sum = data_summary(rp_tm_dtt_graph,varname = "FPKM", groupnames = c("Gene","Treatment"))
+rp_tm_dtt_graph_sum$Gene = as.factor(rp_tm_dtt_graph_sum$Gene)
+
+
+ggplot(rp_tm_dtt_graph_sum, aes(x=Gene, y =FPKM, fill = Treatment)) +
+  geom_bar(stat="identity", color="black", position = position_dodge()) + 
+  geom_errorbar(aes(ymin=FPKM, ymax=FPKM+se), width=.2, position = position_dodge(.9)) +
+  scale_y_continuous( expand = c(0, 0)) +
+  #annotate("text",x=1,y=6000,label="p=0.03")+
+  #annotate("text",x=2,y=6800,label="p<0.0001")+
+  #annotate("text",x=3,y=3000,label="p<0.0001")+
+  theme_classic()+
+  theme(text = element_text(size = 15), axis.text.x = element_text(size=12, angle = 90, color = "black"), axis.text.y = element_text(size=12, color = "black"))
+```
+
+
+
+
+
+
